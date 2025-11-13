@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<package xmlns="http://schemas.microsoft.com/packaging/2015/06/nuspec.xsd">
+  <metadata>
+    <id>security-platform-agent</id>
+    <version>1.0.0</version>
+    <title>Security Platform Agent</title>
+    <authors>Security Platform</authors>
+    <owners>Security Platform</owners>
+    <summary>Security Platform Desktop Agent for Windows</summary>
+    <description>Simple, automatic security observability for Windows desktop systems.</description>
+    <projectUrl>https://github.com/security-platform/desktop-agent</projectUrl>
+    <tags>security observability monitoring agent</tags>
+    <copyright>Copyright Security Platform</copyright>
+    <licenseUrl>https://github.com/security-platform/desktop-agent/blob/main/LICENSE</licenseUrl>
+    <requireLicenseAcceptance>false</requireLicenseAcceptance>
+  </metadata>
+  <files>
+    <file src="tools\**" target="tools" />
+  </files>
+</package>

@@ -1,0 +1,15 @@
+[Unit]
+Description=Security Platform Desktop Agent
+After=network.target
+
+[Service]
+Type=simple
+ExecStart=/usr/local/bin/security-platform-agent -service
+Restart=always
+RestartSec=10
+StandardOutput=journal
+StandardError=journal
+Environment="SECURITY_PLATFORM_CONTROL_PLANE_URL=https://api.securityplatform.com"
+
+[Install]
+WantedBy=multi-user.target

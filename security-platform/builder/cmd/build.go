@@ -53,6 +53,12 @@ Produces compiled artifacts ready for packaging.`,
 			return buildGoAgent(outDir, buildVersion, buildArch)
 		case "frontend":
 			return buildFrontendSDK(outDir, buildVersion)
+		case "ios":
+			return buildIOSSDK(outDir, buildVersion)
+		case "android":
+			return buildAndroidSDK(outDir, buildVersion)
+		case "desktop":
+			return buildDesktopAgent(outDir, buildVersion, buildArch)
 		default:
 			return fmt.Errorf("unsupported language: %s", buildLang)
 		}
@@ -61,7 +67,7 @@ Produces compiled artifacts ready for packaging.`,
 
 func init() {
 	rootCmd.AddCommand(buildCmd)
-	buildCmd.Flags().StringVar(&buildLang, "lang", "", "language/runtime (node, python, java, dotnet, go, frontend)")
+	buildCmd.Flags().StringVar(&buildLang, "lang", "", "language/runtime (node, python, java, dotnet, go, frontend, ios, android, desktop)")
 	buildCmd.Flags().StringVar(&buildVersion, "version", "", "version number (e.g., 1.2.0)")
 	buildCmd.Flags().StringVar(&buildArch, "arch", "amd64", "architecture (amd64, arm64, 386)")
 }
@@ -101,5 +107,26 @@ func buildFrontendSDK(outDir, version string) error {
 	fmt.Println("Building Frontend SDK...")
 	// In real implementation, run: npm install && npm run build
 	// Create UMD bundle and minified versions
+	return nil
+}
+
+func buildIOSSDK(outDir, version string) error {
+	fmt.Println("Building iOS SDK...")
+	// In real implementation, build Xcode project or Swift Package
+	// Create .xcframework or .framework
+	return nil
+}
+
+func buildAndroidSDK(outDir, version string) error {
+	fmt.Println("Building Android SDK...")
+	// In real implementation, run: ./gradlew build
+	// Create AAR and JAR files
+	return nil
+}
+
+func buildDesktopAgent(outDir, version, arch string) error {
+	fmt.Printf("Building Desktop Agent for %s...\n", arch)
+	// In real implementation, use goreleaser for cross-platform builds
+	// Build binaries for Windows, macOS, Linux
 	return nil
 }
