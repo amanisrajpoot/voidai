@@ -1,0 +1,33 @@
+{
+  "name": "@security-platform/frontend-sdk",
+  "version": "0.1.0",
+  "description": "Security Platform Frontend SDK with session replay and telemetry",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "module": "dist/index.esm.js",
+  "browser": "dist/index.umd.js",
+  "scripts": {
+    "build": "tsup src/index.ts --format cjs,esm,umd --dts",
+    "dev": "tsup src/index.ts --format cjs,esm,umd --dts --watch",
+    "test": "jest"
+  },
+  "dependencies": {
+    "@opentelemetry/api": "^1.7.0",
+    "@opentelemetry/sdk-trace-web": "^1.20.0",
+    "@opentelemetry/exporter-otlp-http": "^0.45.0",
+    "rrweb": "^2.0.0",
+    "rrweb-player": "^2.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "tsup": "^8.0.0",
+    "typescript": "^5.0.0"
+  },
+  "keywords": [
+    "security",
+    "observability",
+    "session-replay",
+    "telemetry"
+  ],
+  "license": "MIT"
+}

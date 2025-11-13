@@ -1,0 +1,107 @@
+name: Build and Package
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  release:
+    types: [created]
+
+jobs:
+  build-builder:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      
+      - name: Set up Go
+        uses: actions/setup-go@v4
+        with:
+          go-version: '1.21'
+      
+      - name: Build Builder CLI
+        run: |
+          cd builder
+          go build -o builder .
+      
+      - name: Upload Builder Artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: builder-cli
+          path: builder/builder
+
+  build-agents:
+    needs: build-builder
+    strategy:
+      matrix:
+        lang: [node, python, go]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      
+      - name: Download Builder
+        uses: actions/download-artifact@v3
+        with:
+          name: builder-cli
+          path: builder/
+      
+      - name: Build Agent
+        run: |
+          chmod +x builder/builder
+          ./builder/builder build agent --lang=${{ matrix.lang }} --version=${{ github.ref_name }}
+      
+      - name: Upload Artifacts
+        uses: actions/upload-artifact@v3
+        with:
+          name: agent-${{ matrix.lang }}
+          path: dist/
+
+  package:
+    needs: build-agents
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      
+      - name: Download Builder
+        uses: actions/download-artifact@v3
+        with:
+          name: builder-cli
+          path: builder/
+      
+      - name: Download Artifacts
+        uses: actions/download-artifact@v3
+        with:
+          path: dist/
+      
+      - name: Package for Linux
+        run: |
+          chmod +x builder/builder
+          ./builder/builder package --target=deb,rpm,helm --version=${{ github.ref_name }} --out=./packages
+      
+      - name: Sign Packages
+        if: github.event_name == 'release'
+        run: |
+          ./builder/builder sign --artifact ./packages/*.deb --method=gpg --key=${{ secrets.GPG_KEY_ID }}
+      
+      - name: Upload Packages
+        uses: actions/upload-artifact@v3
+        with:
+          name: packages
+          path: packages/
+
+  release:
+    needs: package
+    if: github.event_name == 'release'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v3
+        with:
+          name: packages
+          path: packages/
+      
+      - name: Create Release
+        uses: softprops/action-gh-release@v1
+        with:
+          files: packages/*
+          draft: false
+          prerelease: false

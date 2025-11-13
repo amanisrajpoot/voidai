@@ -1,0 +1,105 @@
+# Security Platform Agent Configuration
+# Supports both YAML and JSON formats
+
+# Control Plane Configuration
+control_plane:
+  url: "https://console.securityplatform.com"
+  # Alternative: use environment variable SECURITY_PLATFORM_CONTROL_PLANE_URL
+
+# Authentication
+auth:
+  # Bootstrap token (short-lived, used for initial registration)
+  bootstrap_token: "${SECURITY_PLATFORM_BOOTSTRAP_TOKEN}"
+  # PKI mode (for enterprise)
+  # pki:
+  #   cert_path: "/etc/security-platform/cert.pem"
+  #   key_path: "/etc/security-platform/key.pem"
+  #   ca_path: "/etc/security-platform/ca.pem"
+
+# Service Identity
+service:
+  name: "${SERVICE_NAME:-my-service}"
+  version: "1.0.0"
+  environment: "${ENV:-production}"
+
+# Telemetry Configuration
+telemetry:
+  # OTLP endpoint (defaults to control_plane.url/v1/traces)
+  otlp_endpoint: "${OTLP_ENDPOINT:-}"
+  batch_size: 50
+  flush_interval_ms: 5000
+  # Offline mode: cache telemetry locally when control plane unreachable
+  offline_mode: true
+  offline_cache_path: "/var/lib/security-platform/cache"
+
+# Redaction Rules (PII handling)
+redaction:
+  # Default rules (never record these fields)
+  default_rules:
+    - "password"
+    - "card"
+    - "ssn"
+    - "pin"
+    - "auth.*"
+    - "token"
+    - "secret"
+    - "api_key"
+  # Custom rules (regex patterns)
+  custom_rules: []
+  # Hash payloads instead of storing raw data
+  hash_payloads: true
+  # Fields marked as safe (developer opt-in)
+  safe_fields: []
+
+# Local Policy Enforcement
+policy:
+  # Default mode: observe-only for first 48 hours, then enable blocking
+  mode: "observe"  # observe | block
+  # Policy cache TTL (seconds)
+  cache_ttl: 300
+  # Local policy file (for air-gapped installs)
+  local_policy_path: "/etc/security-platform/policy.json"
+
+# Session Replay (frontend only)
+session_replay:
+  enabled: true
+  mask_all_inputs: true
+  record_canvas: false  # Disabled for privacy
+  batch_size: 50
+  flush_interval_ms: 5000
+
+# Auto-Update
+update:
+  enabled: true
+  check_interval_hours: 24
+  # Channel: stable | beta | alpha
+  channel: "stable"
+  # Verify signatures before updating
+  verify_signatures: true
+
+# Logging
+logging:
+  level: "info"  # debug | info | warn | error
+  format: "json"  # json | text
+  output: "stdout"  # stdout | file | syslog
+
+# Security Hardening
+security:
+  # Use mTLS for agent -> control plane
+  mtls_enabled: true
+  # Secure storage for secrets (use OS keystore when available)
+  secure_storage:
+    type: "file"  # file | keychain | vault
+    path: "/var/lib/security-platform/secrets"
+  # Audit logging
+  audit_log_enabled: true
+  audit_log_path: "/var/log/security-platform/audit.log"
+
+# Compliance
+compliance:
+  # GDPR/CCPA: TTL for session data (days)
+  session_data_ttl_days: 90
+  # Enable data export API
+  export_enabled: true
+  # Enable deletion API
+  deletion_enabled: true

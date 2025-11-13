@@ -1,0 +1,8 @@
+Package: {{.PackageName}}
+Version: {{.Version}}
+Section: utils
+Priority: optional
+Architecture: {{.Architecture}}
+Maintainer: Security Platform <support@securityplatform.com>
+Description: {{.Description}}
+ {{.LongDescription}}

@@ -1,0 +1,111 @@
+receivers:
+  otlp:
+    protocols:
+      http:
+        endpoint: 0.0.0.0:4318
+      grpc:
+        endpoint: 0.0.0.0:4317
+
+  # Prometheus metrics receiver
+  prometheus:
+    config:
+      scrape_configs:
+        - job_name: 'security-platform'
+          scrape_interval: 15s
+          static_configs:
+            - targets: ['localhost:9090']
+
+processors:
+  # Batch processor for efficiency
+  batch:
+    timeout: 1s
+    send_batch_size: 1024
+
+  # Resource processor to add metadata
+  resource:
+    attributes:
+      - key: deployment.environment
+        value: ${DEPLOYMENT_ENV}
+        action: upsert
+      - key: service.version
+        value: ${SERVICE_VERSION}
+        action: upsert
+
+  # Memory limiter to prevent OOM
+  memory_limiter:
+    limit_mib: 512
+    spike_limit_mib: 128
+    check_interval: 5s
+
+  # Filter sensitive data
+  attributes:
+    actions:
+      - key: password
+        action: delete
+      - key: card
+        action: delete
+      - key: ssn
+        action: delete
+      - key: pin
+        action: delete
+      - key: auth.*
+        action: delete
+
+exporters:
+  # Export to OpenSearch
+  opensearch:
+    endpoints:
+      - ${OPENSEARCH_ENDPOINT:-http://localhost:9200}
+    logs_index: security-platform-logs
+    traces_index: security-platform-traces
+    metrics_index: security-platform-metrics
+    mapping:
+      mode: ecs
+    flush:
+      interval: 5s
+      bytes: 10485760
+    retry:
+      initial_interval: 1s
+      max_interval: 30s
+      max_elapsed_time: 300s
+
+  # Export to ClickHouse (alternative)
+  # clickhouse:
+  #   endpoint: tcp://localhost:9000
+  #   database: security_platform
+  #   table: traces
+  #   timeout: 5s
+
+  # Export to S3/MinIO for session blobs
+  s3:
+    s3uploader:
+      region: ${AWS_REGION:-us-east-1}
+      s3_bucket: ${S3_BUCKET:-security-platform-sessions}
+      s3_prefix: sessions/
+      endpoint: ${S3_ENDPOINT:-}  # For MinIO
+      aws:
+        access_key_id: ${AWS_ACCESS_KEY_ID}
+        secret_access_key: ${AWS_SECRET_ACCESS_KEY}
+
+  # Debug exporter (for development)
+  logging:
+    loglevel: info
+
+service:
+  pipelines:
+    traces:
+      receivers: [otlp]
+      processors: [memory_limiter, resource, attributes, batch]
+      exporters: [opensearch, logging]
+
+    metrics:
+      receivers: [prometheus, otlp]
+      processors: [memory_limiter, resource, batch]
+      exporters: [opensearch, logging]
+
+    logs:
+      receivers: [otlp]
+      processors: [memory_limiter, resource, attributes, batch]
+      exporters: [opensearch, s3, logging]
+
+  extensions: []
