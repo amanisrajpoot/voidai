@@ -2,7 +2,9 @@ package cmd
 
 import (
 	"fmt"
+	"io"
 	"os"
+	"os/exec"
 	"path/filepath"
 
 	"github.com/spf13/cobra"
@@ -81,20 +83,105 @@ func buildPythonAgent(outDir, version string) error {
 
 func buildJavaAgent(outDir, version string) error {
 	fmt.Println("Building Java agent...")
-	// In real implementation, run: mvn clean package
+	agentDir := "agents/java"
+	if _, err := os.Stat(agentDir); os.IsNotExist(err) {
+		return fmt.Errorf("Java agent directory not found: %s", agentDir)
+	}
+	
+	// Run Maven build
+	cmd := exec.Command("mvn", "clean", "package", "-DskipTests")
+	cmd.Dir = agentDir
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+	if err := cmd.Run(); err != nil {
+		return fmt.Errorf("Maven build failed: %w", err)
+	}
+	
+	// Copy JAR to output
+	targetJar := filepath.Join(agentDir, "target", fmt.Sprintf("security-platform-agent-%s.jar", version))
+	destJar := filepath.Join(outDir, fmt.Sprintf("security-platform-agent-%s.jar", version))
+	if err := copyFile(targetJar, destJar); err != nil {
+		return fmt.Errorf("Failed to copy JAR: %w", err)
+	}
+	
 	return nil
 }
 
 func buildDotNetAgent(outDir, version string) error {
 	fmt.Println("Building .NET agent...")
-	// In real implementation, run: dotnet build --configuration Release
+	agentDir := "agents/dotnet/SecurityPlatform.Agent"
+	if _, err := os.Stat(agentDir); os.IsNotExist(err) {
+		return fmt.Errorf(".NET agent directory not found: %s", agentDir)
+	}
+	
+	// Run dotnet build
+	cmd := exec.Command("dotnet", "build", "--configuration", "Release", "-p:Version="+version)
+	cmd.Dir = agentDir
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+	if err := cmd.Run(); err != nil {
+		return fmt.Errorf("dotnet build failed: %w", err)
+	}
+	
+	// Run dotnet pack
+	cmd = exec.Command("dotnet", "pack", "--configuration", "Release", "-p:Version="+version, "--output", outDir)
+	cmd.Dir = agentDir
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+	if err := cmd.Run(); err != nil {
+		return fmt.Errorf("dotnet pack failed: %w", err)
+	}
+	
 	return nil
 }
 
 func buildGoAgent(outDir, version, arch string) error {
 	fmt.Printf("Building Go agent for %s...\n", arch)
-	// In real implementation, use goreleaser or go build
+	agentDir := "agents/go"
+	if _, err := os.Stat(agentDir); os.IsNotExist(err) {
+		return fmt.Errorf("Go agent directory not found: %s", agentDir)
+	}
+	
+	// Set GOOS and GOARCH based on arch
+	goos := "linux"
+	goarch := "amd64"
+	if arch == "arm64" {
+		goarch = "arm64"
+	}
+	
+	// Build binary
+	binaryName := fmt.Sprintf("security-platform-agent-%s-%s-%s", version, goos, goarch)
+	if goos == "windows" {
+		binaryName += ".exe"
+	}
+	
+	cmd := exec.Command("go", "build", "-o", filepath.Join(outDir, binaryName), "-ldflags", fmt.Sprintf("-X main.version=%s", version), "./main.go")
+	cmd.Dir = agentDir
+	cmd.Env = append(os.Environ(), "GOOS="+goos, "GOARCH="+goarch)
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+	if err := cmd.Run(); err != nil {
+		return fmt.Errorf("go build failed: %w", err)
+	}
+	
 	return nil
+}
+
+func copyFile(src, dst string) error {
+	sourceFile, err := os.Open(src)
+	if err != nil {
+		return err
+	}
+	defer sourceFile.Close()
+	
+	destFile, err := os.Create(dst)
+	if err != nil {
+		return err
+	}
+	defer destFile.Close()
+	
+	_, err = io.Copy(destFile, sourceFile)
+	return err
 }
 
 func buildFrontendSDK(outDir, version string) error {

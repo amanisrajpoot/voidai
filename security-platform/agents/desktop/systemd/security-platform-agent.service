@@ -1,0 +1,16 @@
+[Unit]
+Description=Security Platform Agent
+After=network.target
+
+[Service]
+Type=simple
+User=security-platform
+Group=security-platform
+ExecStart=/usr/local/bin/security-platform-agent -config=/etc/security-platform/config.yaml -service
+Restart=always
+RestartSec=10
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target
