@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Frontend SDK Quickstart</title>
+</head>
+<body>
+    <h1>Security Platform Frontend SDK Demo</h1>
+    
+    <form id="login-form">
+        <input type="text" name="username" placeholder="Username" />
+        <input type="password" name="password" placeholder="Password" />
+        <button type="submit">Login</button>
+    </form>
+
+    <div>
+        <button onclick="captureEvent()">Capture Custom Event</button>
+    </div>
+
+    <!-- SDK via CDN -->
+    <script src="https://cdn.example.com/security-platform-sdk.js"></script>
+    <script>
+        // Initialize SDK
+        const sdk = SecurityPlatform.init({
+            controlPlaneUrl: 'http://localhost:3000',
+            authKey: 'demo-key',
+            serviceName: 'demo-app',
+            environment: 'development',
+            enableSessionReplay: true,
+            enableRUM: true,
+        });
+
+        // Capture form submission
+        document.getElementById('login-form').addEventListener('submit', (e) => {
+            e.preventDefault();
+            sdk.captureEvent('form_submit', {
+                form: 'login',
+                username: e.target.username.value,
+                // password is automatically redacted
+            });
+        });
+
+        function captureEvent() {
+            sdk.captureEvent('button_click', {
+                button: 'custom-event',
+                timestamp: Date.now(),
+            });
+        }
+    </script>
+</body>
+</html>

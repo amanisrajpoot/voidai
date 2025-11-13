@@ -1,0 +1,14 @@
+_format_version: "3.0"
+
+services:
+  - name: control-plane
+    url: http://control-plane:3000
+    routes:
+      - name: api
+        paths:
+          - /api
+    plugins:
+      - name: rate-limiting
+        config:
+          minute: 1000
+          hour: 10000
