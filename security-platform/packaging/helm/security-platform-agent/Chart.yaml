@@ -1,0 +1,15 @@
+apiVersion: v2
+name: security-platform-agent
+description: Security Platform Agent Helm Chart
+type: application
+version: 1.0.0
+appVersion: "1.0.0"
+keywords:
+  - security
+  - observability
+  - rasp
+maintainers:
+  - name: Security Platform
+    email: support@securityplatform.com
+sources:
+  - https://github.com/security-platform/agent

@@ -1,0 +1,70 @@
+# Build artifacts
+bin/
+dist/
+build/
+*.o
+*.so
+*.dylib
+*.exe
+
+# Dependencies
+node_modules/
+vendor/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+logs/
+
+# Environment
+.env
+.env.local
+*.pem
+*.key
+*.crt
+
+# Test coverage
+coverage/
+*.cover
+.nyc_output/
+
+# Temporary files
+tmp/
+temp/
+*.tmp
+
+# Package files
+*.deb
+*.rpm
+*.msi
+*.dmg
+*.pkg
+*.zip
+*.tar.gz
+
+# Go
+*.test
+*.out
+
+# Python
+*.egg-info/
+.eggs/
+*.egg
+
+# TypeScript
+*.tsbuildinfo

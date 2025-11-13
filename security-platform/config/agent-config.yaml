@@ -1,0 +1,93 @@
+# Security Platform Agent Configuration Schema
+# This file defines the structure for agent configuration files
+
+# Control Plane Configuration
+control_plane_url: "https://api.securityplatform.com"  # or on-prem URL
+auth_key: ""  # Short-lived bootstrap token or PKI certificate path
+auth_type: "token"  # "token" or "pki"
+
+# Service Identification
+service_name: "my-service"
+environment: "production"  # production, staging, development
+namespace: "default"
+
+# Telemetry Configuration
+telemetry:
+  otlp_endpoint: "http://localhost:4318"  # OTLP gRPC/HTTP endpoint
+  batch_size: 100  # Number of spans/events per batch
+  batch_timeout: "5s"  # Maximum time to wait before flushing batch
+  export_timeout: "30s"  # Timeout for export operations
+  max_queue_size: 2048  # Maximum queue size before dropping
+
+# Redaction Rules (PII Protection)
+redaction:
+  enabled: true
+  default_blocklist:
+    - "password"
+    - "passwd"
+    - "pwd"
+    - "secret"
+    - "token"
+    - "api_key"
+    - "apikey"
+    - "auth.*"
+    - "credit_card"
+    - "card_number"
+    - "cvv"
+    - "ssn"
+    - "social_security"
+    - "pin"
+    - "passcode"
+  custom_rules: []  # Additional regex patterns
+  hash_payloads: true  # Compute SHA256 hash instead of storing raw PII
+  safe_fields: []  # Fields explicitly marked as safe (developer opt-in)
+
+# Local Policy Enforcement
+policy:
+  mode: "observe"  # "observe" or "block"
+  auto_enable_blocking: false  # Auto-enable blocking after 48h observe period
+  observe_period_hours: 48
+  rules: []  # Local rule definitions
+
+# Session Recording (for frontend/mobile)
+session_recording:
+  enabled: false
+  sample_rate: 1.0  # 0.0 to 1.0
+  max_session_duration: "30m"
+  redact_inputs: true
+  mask_text: true
+
+# Offline Mode
+offline:
+  enabled: true
+  cache_size_mb: 100
+  cache_ttl: "7d"
+  upload_on_connectivity: true
+
+# Security Settings
+security:
+  mtls_enabled: true
+  certificate_path: ""  # Path to client certificate
+  key_path: ""  # Path to client private key
+  ca_bundle_path: ""  # Path to CA bundle
+  insecure_skip_verify: false  # Only for development
+
+# Auto-Update
+auto_update:
+  enabled: true
+  check_interval: "24h"
+  channel: "stable"  # stable, beta, alpha
+  require_signature: true
+  manifest_url: "https://updates.securityplatform.com/manifest.json"
+
+# Logging
+logging:
+  level: "info"  # debug, info, warn, error
+  format: "json"  # json or text
+  output: "stdout"  # stdout, stderr, or file path
+
+# Resource Limits
+resources:
+  max_memory_mb: 512
+  max_cpu_percent: 10
+  max_file_descriptors: 1024
