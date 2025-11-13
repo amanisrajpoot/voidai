@@ -1,0 +1,44 @@
+receivers:
+  otlp:
+    protocols:
+      grpc:
+        endpoint: 0.0.0.0:4317
+      http:
+        endpoint: 0.0.0.0:4318
+
+processors:
+  batch:
+    timeout: 1s
+    send_batch_size: 1024
+  memory_limiter:
+    limit_mib: 512
+  attributes:
+    actions:
+      - key: deployment.environment
+        value: production
+        action: insert
+
+exporters:
+  opensearch:
+    endpoints:
+      - http://opensearch:9200
+    logs_index: observability-logs
+    traces_index: observability-traces
+    metrics_index: observability-metrics
+    flush:
+      interval: 5s
+
+service:
+  pipelines:
+    traces:
+      receivers: [otlp]
+      processors: [memory_limiter, attributes, batch]
+      exporters: [opensearch]
+    metrics:
+      receivers: [otlp]
+      processors: [memory_limiter, batch]
+      exporters: [opensearch]
+    logs:
+      receivers: [otlp]
+      processors: [memory_limiter, attributes, batch]
+      exporters: [opensearch]

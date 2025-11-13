@@ -1,0 +1,76 @@
+# Observability Agent Configuration
+# Supports YAML or JSON format
+
+# Control Plane Configuration
+control_plane_url: https://control.example.com
+auth_key: ${AUTH_KEY}  # Environment variable substitution supported
+
+# Service Identification
+service_name: my-service
+service_version: 1.0.0
+environment: production  # development | staging | production
+
+# Telemetry Configuration
+otlp_endpoint: ${OTLP_ENDPOINT}  # Optional, defaults to control_plane_url/v1/traces
+telemetry_batch_size: 100
+telemetry_export_timeout: 30s
+telemetry_export_interval: 5s
+
+# Redaction Rules (PII Protection)
+redaction_rules:
+  - password
+  - passwd
+  - pwd
+  - secret
+  - token
+  - api_key
+  - api-key
+  - auth_token
+  - credit_card
+  - card_number
+  - cvv
+  - ssn
+  - social_security
+  - pin
+
+# Local Policy Configuration
+local_policy:
+  mode: observe  # observe | block | alert
+  enabled: true
+  rules:
+    # Example: Block requests matching SQL injection patterns
+    # - name: sql_injection
+    #   pattern: ".*(union|select|drop|insert|delete).*"
+    #   action: block
+    #   severity: high
+
+# Sampling Configuration
+sampling:
+  trace_sample_rate: 1.0  # 0.0 to 1.0
+  enable_adaptive_sampling: false
+
+# Offline Mode
+offline:
+  enabled: false
+  cache_size_mb: 100
+  cache_ttl_hours: 24
+
+# Auto-Update Configuration
+auto_update:
+  enabled: true
+  check_interval: 1h
+  channel: stable  # stable | beta | alpha
+  verify_signature: true
+
+# Logging
+logging:
+  level: info  # debug | info | warn | error
+  format: json  # json | text
+  output: stdout  # stdout | file | syslog
+
+# Advanced
+advanced:
+  enable_profiling: false
+  enable_metrics: true
+  metrics_port: 9090
+  health_check_port: 9091

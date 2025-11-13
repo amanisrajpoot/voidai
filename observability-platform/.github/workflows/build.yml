@@ -1,0 +1,108 @@
+name: Build and Package
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version to build'
+        required: true
+
+jobs:
+  build-builder:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      
+      - name: Set up Go
+        uses: actions/setup-go@v4
+        with:
+          go-version: '1.21'
+      
+      - name: Build builder CLI
+        run: |
+          cd builder
+          go build -o builder ./main.go
+      
+      - name: Upload builder artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: builder
+          path: builder/builder
+
+  build-agents:
+    needs: build-builder
+    strategy:
+      matrix:
+        lang: [node, python, go, java, dotnet]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      
+      - name: Build agent
+        run: |
+          ./builder/builder build agent --lang=${{ matrix.lang }} --version=${{ github.event.inputs.version || github.ref_name }}
+      
+      - name: Package agent
+        run: |
+          ./builder/builder package --target=deb,rpm --out=./dist --version=${{ github.event.inputs.version || github.ref_name }}
+      
+      - name: Sign packages
+        if: env.SIGNING_KEY != ''
+        env:
+          SIGNING_KEY: ${{ secrets.GPG_PRIVATE_KEY }}
+        run: |
+          ./builder/builder sign --artifact ./dist/*.deb --key ./keys/private.pem
+      
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v3
+        with:
+          name: agent-${{ matrix.lang }}
+          path: dist/*
+
+  build-frontend-sdk:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      
+      - name: Set up Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '20'
+      
+      - name: Build frontend SDK
+        run: |
+          cd sdk/frontend
+          npm install
+          npm run build
+          npm pack
+      
+      - name: Upload artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: frontend-sdk
+          path: sdk/frontend/*.tgz
+
+  release:
+    needs: [build-agents, build-frontend-sdk]
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/')
+    steps:
+      - uses: actions/checkout@v3
+      
+      - name: Download all artifacts
+        uses: actions/download-artifact@v3
+      
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v1
+        with:
+          files: |
+            **/*.deb
+            **/*.rpm
+            **/*.tgz
+            **/*.msi
+            **/*.dmg
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

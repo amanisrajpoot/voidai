@@ -1,0 +1,23 @@
+[Unit]
+Description=Observability Agent
+After=network.target
+
+[Service]
+Type=simple
+User=observability-agent
+Group=observability-agent
+ExecStart=/usr/bin/observability-agentd --config /etc/observability-agent/config.yaml
+Restart=always
+RestartSec=10
+StandardOutput=journal
+StandardError=journal
+
+# Security hardening
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/var/lib/observability-agent
+
+[Install]
+WantedBy=multi-user.target
