@@ -1,0 +1,158 @@
+name: Build and Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version to release'
+        required: true
+
+jobs:
+  build-builder:
+    name: Build Builder CLI
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.21'
+      
+      - name: Build builder
+        working-directory: ./builder
+        run: |
+          go build -o builder ./cmd
+      
+      - name: Upload builder artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: builder-binary
+          path: builder/builder
+
+  build-agents:
+    name: Build Agents
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+        lang: [node, python, java, dotnet, go, frontend]
+        exclude:
+          - os: macos-latest
+            lang: dotnet
+          - os: windows-latest
+            lang: python
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Build Node.js agent
+        if: matrix.lang == 'node'
+        working-directory: ./agents/node
+        run: |
+          npm ci
+          npm run build
+      
+      - name: Build Python agent
+        if: matrix.lang == 'python'
+        working-directory: ./agents/python
+        run: |
+          pip install build
+          python -m build
+      
+      - name: Build Java agent
+        if: matrix.lang == 'java'
+        working-directory: ./agents/java
+        run: |
+          mvn clean package
+      
+      - name: Build .NET agent
+        if: matrix.lang == 'dotnet'
+        working-directory: ./agents/dotnet
+        run: |
+          dotnet build --configuration Release
+      
+      - name: Build Go agent
+        if: matrix.lang == 'go'
+        working-directory: ./agents/go
+        run: |
+          go build -o agent ./cmd
+      
+      - name: Build Frontend SDK
+        if: matrix.lang == 'frontend'
+        working-directory: ./agents/frontend
+        run: |
+          npm ci
+          npm run build
+      
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.lang }}-${{ matrix.os }}
+          path: |
+            agents/${{ matrix.lang }}/dist/*
+            agents/${{ matrix.lang }}/*.whl
+            agents/${{ matrix.lang }}/*.jar
+            agents/${{ matrix.lang }}/*.nupkg
+
+  package:
+    name: Create Packages
+    needs: [build-agents]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Download artifacts
+        uses: actions/download-artifact@v4
+      
+      - name: Set up packaging tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y dpkg-dev rpm fakeroot
+      
+      - name: Create DEB package
+        run: |
+          ./builder/builder package --target=deb --out=./dist
+      
+      - name: Create RPM package
+        run: |
+          ./builder/builder package --target=rpm --out=./dist
+      
+      - name: Sign packages
+        if: env.SIGNING_KEY != ''
+        env:
+          SIGNING_KEY: ${{ secrets.GPG_SIGNING_KEY }}
+        run: |
+          echo "$SIGNING_KEY" | gpg --import
+          ./builder/builder sign --artifact ./dist/*.deb --key ./keys/private.pem
+          ./builder/builder sign --artifact ./dist/*.rpm --key ./keys/private.pem
+      
+      - name: Upload packages
+        uses: actions/upload-artifact@v4
+        with:
+          name: packages
+          path: dist/*
+
+  release:
+    name: Create Release
+    needs: [package]
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/')
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Download packages
+        uses: actions/download-artifact@v4
+        with:
+          name: packages
+      
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v1
+        with:
+          files: packages/*
+          draft: false
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

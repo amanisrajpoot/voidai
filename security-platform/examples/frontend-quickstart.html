@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Security Platform Frontend SDK - Quick Start</title>
+</head>
+<body>
+    <h1>Security Platform Frontend SDK Example</h1>
+    
+    <!-- Option 1: CDN (auto-initialize) -->
+    <script 
+        src="https://cdn.securityplatform.com/sdk/v1/frontend-sdk.min.js"
+        data-auto-init="true"
+        data-control-plane-url="https://api.securityplatform.com"
+        data-service-name="my-web-app"
+        data-environment="production"
+        data-enable-session-recording="true"
+        data-enable-rum="true">
+    </script>
+
+    <!-- Option 2: NPM (manual initialization) -->
+    <!--
+    <script type="module">
+        import { init } from '@security-platform/frontend-sdk';
+        
+        init({
+            controlPlaneUrl: 'https://api.securityplatform.com',
+            authKey: 'your-auth-key',
+            serviceName: 'my-web-app',
+            environment: 'production',
+            enableSessionRecording: true,
+            enableRUM: true,
+            redactionRules: [
+                { pattern: 'password|passwd', field: '*' },
+                { pattern: '\\d{4}[\\s-]?\\d{4}[\\s-]?\\d{4}[\\s-]?\\d{4}', field: '*' }, // Credit card
+            ],
+        });
+    </script>
+    -->
+
+    <form id="login-form">
+        <input type="text" name="username" placeholder="Username" />
+        <input type="password" name="password" placeholder="Password" />
+        <button type="submit">Login</button>
+    </form>
+
+    <script>
+        // Example: Form submission will be automatically captured and redacted
+        document.getElementById('login-form').addEventListener('submit', (e) => {
+            e.preventDefault();
+            console.log('Form submitted - password field will be redacted automatically');
+        });
+    </script>
+</body>
+</html>

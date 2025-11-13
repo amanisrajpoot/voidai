@@ -1,0 +1,83 @@
+receivers:
+  otlp:
+    protocols:
+      grpc:
+        endpoint: 0.0.0.0:4317
+      http:
+        endpoint: 0.0.0.0:4318
+
+  # Prometheus receiver for metrics
+  prometheus:
+    config:
+      scrape_configs:
+        - job_name: 'security-platform'
+          scrape_interval: 15s
+          static_configs:
+            - targets: ['localhost:9090']
+
+processors:
+  # Batch processor for efficiency
+  batch:
+    timeout: 5s
+    send_batch_size: 100
+
+  # Resource processor to add attributes
+  resource:
+    attributes:
+      - key: deployment.environment
+        value: ${DEPLOYMENT_ENVIRONMENT}
+        action: upsert
+
+  # Redaction processor (custom)
+  redaction:
+    redaction_rules:
+      - pattern: "password|passwd|pwd|secret|token|api_key"
+        replacement: "[REDACTED]"
+
+exporters:
+  # OpenSearch exporter for traces and logs
+  opensearch:
+    endpoints:
+      - ${OPENSEARCH_ENDPOINT:-http://localhost:9200}
+    logs_index: security-platform-logs
+    traces_index: security-platform-traces
+    tls:
+      insecure: true  # Set to false in production with proper certs
+
+  # ClickHouse exporter for metrics
+  clickhouse:
+    endpoint: ${CLICKHOUSE_ENDPOINT:-tcp://localhost:9000}
+    database: security_platform
+    table: metrics
+    tls:
+      insecure: true
+
+  # S3/MinIO exporter for session blobs
+  s3:
+    s3bucket: ${S3_BUCKET:-security-platform-sessions}
+    s3region: ${S3_REGION:-us-east-1}
+    s3prefix: sessions/
+    endpoint: ${S3_ENDPOINT:-http://localhost:9000}  # MinIO default
+
+  # OTLP exporter for forwarding to another collector
+  otlp/forward:
+    endpoint: ${FORWARD_ENDPOINT:-}
+    tls:
+      insecure: true
+
+service:
+  pipelines:
+    traces:
+      receivers: [otlp]
+      processors: [batch, resource, redaction]
+      exporters: [opensearch, otlp/forward]
+
+    metrics:
+      receivers: [otlp, prometheus]
+      processors: [batch, resource]
+      exporters: [clickhouse]
+
+    logs:
+      receivers: [otlp]
+      processors: [batch, resource, redaction]
+      exporters: [opensearch, s3]

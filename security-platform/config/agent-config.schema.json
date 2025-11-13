@@ -1,0 +1,243 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Security Platform Agent Configuration",
+  "type": "object",
+  "properties": {
+    "control_plane_url": {
+      "type": "string",
+      "format": "uri",
+      "description": "Control plane API endpoint URL"
+    },
+    "auth_key": {
+      "type": "string",
+      "description": "Bootstrap authentication token or PKI certificate path"
+    },
+    "auth_type": {
+      "type": "string",
+      "enum": ["token", "pki"],
+      "default": "token"
+    },
+    "service_name": {
+      "type": "string",
+      "description": "Service name identifier"
+    },
+    "environment": {
+      "type": "string",
+      "enum": ["production", "staging", "development"],
+      "default": "production"
+    },
+    "telemetry": {
+      "type": "object",
+      "properties": {
+        "otlp_endpoint": {
+          "type": "string",
+          "format": "uri"
+        },
+        "batch_size": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 10000,
+          "default": 100
+        },
+        "batch_timeout": {
+          "type": "string",
+          "pattern": "^\\d+[smh]$"
+        },
+        "export_timeout": {
+          "type": "string",
+          "pattern": "^\\d+[smh]$"
+        },
+        "max_queue_size": {
+          "type": "integer",
+          "minimum": 1,
+          "default": 2048
+        }
+      }
+    },
+    "redaction": {
+      "type": "object",
+      "properties": {
+        "enabled": {
+          "type": "boolean",
+          "default": true
+        },
+        "default_blocklist": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "custom_rules": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "description": "Regex patterns for additional redaction"
+          }
+        },
+        "hash_payloads": {
+          "type": "boolean",
+          "default": true
+        },
+        "safe_fields": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "policy": {
+      "type": "object",
+      "properties": {
+        "mode": {
+          "type": "string",
+          "enum": ["observe", "block"],
+          "default": "observe"
+        },
+        "auto_enable_blocking": {
+          "type": "boolean",
+          "default": false
+        },
+        "observe_period_hours": {
+          "type": "integer",
+          "minimum": 0,
+          "default": 48
+        }
+      }
+    },
+    "session_recording": {
+      "type": "object",
+      "properties": {
+        "enabled": {
+          "type": "boolean",
+          "default": false
+        },
+        "sample_rate": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1,
+          "default": 1.0
+        },
+        "max_session_duration": {
+          "type": "string",
+          "pattern": "^\\d+[smh]$"
+        },
+        "redact_inputs": {
+          "type": "boolean",
+          "default": true
+        },
+        "mask_text": {
+          "type": "boolean",
+          "default": true
+        }
+      }
+    },
+    "offline": {
+      "type": "object",
+      "properties": {
+        "enabled": {
+          "type": "boolean",
+          "default": true
+        },
+        "cache_size_mb": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "cache_ttl": {
+          "type": "string",
+          "pattern": "^\\d+[dm]$"
+        },
+        "upload_on_connectivity": {
+          "type": "boolean",
+          "default": true
+        }
+      }
+    },
+    "security": {
+      "type": "object",
+      "properties": {
+        "mtls_enabled": {
+          "type": "boolean",
+          "default": true
+        },
+        "certificate_path": {
+          "type": "string"
+        },
+        "key_path": {
+          "type": "string"
+        },
+        "ca_bundle_path": {
+          "type": "string"
+        },
+        "insecure_skip_verify": {
+          "type": "boolean",
+          "default": false
+        }
+      }
+    },
+    "auto_update": {
+      "type": "object",
+      "properties": {
+        "enabled": {
+          "type": "boolean",
+          "default": true
+        },
+        "check_interval": {
+          "type": "string",
+          "pattern": "^\\d+[smh]$"
+        },
+        "channel": {
+          "type": "string",
+          "enum": ["stable", "beta", "alpha"],
+          "default": "stable"
+        },
+        "require_signature": {
+          "type": "boolean",
+          "default": true
+        },
+        "manifest_url": {
+          "type": "string",
+          "format": "uri"
+        }
+      }
+    },
+    "logging": {
+      "type": "object",
+      "properties": {
+        "level": {
+          "type": "string",
+          "enum": ["debug", "info", "warn", "error"],
+          "default": "info"
+        },
+        "format": {
+          "type": "string",
+          "enum": ["json", "text"],
+          "default": "json"
+        },
+        "output": {
+          "type": "string",
+          "default": "stdout"
+        }
+      }
+    },
+    "resources": {
+      "type": "object",
+      "properties": {
+        "max_memory_mb": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "max_cpu_percent": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 100
+        },
+        "max_file_descriptors": {
+          "type": "integer",
+          "minimum": 1
+        }
+      }
+    }
+  },
+  "required": ["service_name", "control_plane_url"]
+}

@@ -1,0 +1,87 @@
+# Goreleaser configuration for cross-platform builds
+project_name: security-platform-builder
+
+builds:
+  - id: builder
+    main: ./builder/main.go
+    binary: builder
+    goos:
+      - linux
+      - darwin
+      - windows
+    goarch:
+      - amd64
+      - arm64
+    flags:
+      - -trimpath
+    ldflags:
+      - -s -w -X main.version={{.Version}} -X main.commit={{.Commit}}
+
+archives:
+  - id: default
+    builds:
+      - builder
+    format_overrides:
+      - goos: windows
+        format: zip
+    files:
+      - README.md
+      - LICENSE
+
+checksum:
+  name_template: 'checksums.txt'
+
+snapshots:
+  name_template: "{{ .Tag }}-next"
+
+changelog:
+  sort: asc
+  filters:
+    exclude:
+      - '^docs:'
+      - '^test:'
+
+dockers:
+  - goos: linux
+    goarch: amd64
+    image_templates:
+      - "securityplatform/builder:{{ .Tag }}"
+      - "securityplatform/builder:latest"
+    dockerfile: builder/Dockerfile
+
+nfpms:
+  - id: deb
+    package_name: security-platform-builder
+    maintainer: Security Platform <support@securityplatform.com>
+    description: Security Platform Builder CLI
+    license: MIT
+    formats:
+      - deb
+    bindir: /usr/bin
+    files:
+      - src: builder
+        dst: /usr/bin/builder
+
+  - id: rpm
+    package_name: security-platform-builder
+    maintainer: Security Platform <support@securityplatform.com>
+    description: Security Platform Builder CLI
+    license: MIT
+    formats:
+      - rpm
+    bindir: /usr/bin
+    files:
+      - src: builder
+        dst: /usr/bin/builder
+
+scoop:
+  bucket:
+    repository: security-platform/scoop-bucket
+  homepage: https://github.com/security-platform/builder
+  description: Security Platform Builder CLI
+
+homebrew:
+  name: security-platform-builder
+  homepage: https://github.com/security-platform/builder
+  description: Security Platform Builder CLI
+  license: MIT
