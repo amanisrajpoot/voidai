@@ -1,0 +1,19 @@
+apiVersion: securityplatform.io/v1
+kind: Agent
+metadata:
+  name: my-agent
+  namespace: default
+spec:
+  controlPlaneUrl: "https://api.securityplatform.com"
+  authKeySecretRef:
+    name: security-platform-auth
+    key: auth-key
+  serviceName: "my-service"
+  environment: "production"
+  replicas: 2
+  image: "securityplatform/agent:latest"
+  telemetry:
+    batchSize: 100
+    maxQueueSize: 2048
+  policy:
+    mode: "observe"

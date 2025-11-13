@@ -32,46 +32,74 @@ A comprehensive security observability platform with installable agents/SDKs for
 
 ## Quick Start
 
-### Building Packages
+### One-Liner Installation
 
+**Linux/macOS:**
 ```bash
-# Initialize a new agent project
-./builder init my-agent --lang=node
-
-# Build an agent
-./builder build agent --lang=node --version=1.2.0
-
-# Package for distribution
-./builder package --target=deb,rpm,msi,dmg,helm --out=./dist
-
-# Sign artifacts
-./builder sign --artifact ./dist/agent.deb --key ./keys/private.pem
-
-# Upload to repository
-./builder upload --artifact ./dist/*.deb --repo artifactory
+curl -fsSL https://install.securityplatform.com | bash
 ```
 
-### Installing Agents
+**Windows (PowerShell):**
+```powershell
+Set-ExecutionPolicy Bypass -Scope Process -Force; iex ((New-Object System.Net.WebClient).DownloadString('https://install.securityplatform.com/install.ps1'))
+```
+
+### Installing Language Agents
 
 ```bash
-# Frontend (npm)
-npm install @security-platform/frontend-sdk
-
-# Python backend
-pip install security-platform-agent
-
-# Node.js backend
+# Node.js
 npm install @security-platform/node-agent
 
-# Java backend
-# Add to pom.xml or build.gradle
+# Python
+pip install security-platform-agent
 
-# .NET backend
+# Java (Maven)
+# Add to pom.xml: <dependency><groupId>com.securityplatform</groupId><artifactId>security-platform-agent</artifactId><version>1.0.0</version></dependency>
+
+# .NET
 dotnet add package SecurityPlatform.Agent
 
-# Go backend
+# Go
 go get github.com/security-platform/go-agent
 ```
+
+### Installing Mobile SDKs
+
+```bash
+# iOS (CocoaPods)
+pod 'SecurityPlatform', '~> 1.0'
+
+# Android (Gradle)
+implementation 'com.securityplatform:agent:1.0.0'
+```
+
+### Package Managers
+
+```bash
+# Homebrew (macOS)
+brew install security-platform-agent
+
+# Chocolatey (Windows)
+choco install security-platform-agent -y
+
+# APT (Debian/Ubuntu)
+curl -fsSL https://packages.securityplatform.com/install.sh | sudo bash
+
+# YUM/DNF (RHEL/CentOS/Fedora)
+sudo yum install https://packages.securityplatform.com/rpm/security-platform-agent.rpm
+```
+
+### Kubernetes
+
+```bash
+# Helm
+helm install my-agent security-platform/security-platform-agent
+
+# Kubernetes Operator
+kubectl apply -f https://raw.githubusercontent.com/security-platform/agents/main/packaging/kubernetes-operator/config/crd/bases/securityplatform.io_agents.yaml
+```
+
+For complete installation instructions, see [INSTALLATION_GUIDE.md](INSTALLATION_GUIDE.md).
 
 ## Project Structure
 

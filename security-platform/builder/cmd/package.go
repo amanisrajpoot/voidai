@@ -17,7 +17,7 @@ var packageCmd = &cobra.Command{
 	Use:   "package",
 	Short: "Produce installers for specified targets",
 	Long: `Generate installers for the specified package formats.
-Supported targets: deb, rpm, msi, dmg, helm, airgap`,
+Supported targets: deb, rpm, msi, dmg, helm, homebrew, chocolatey, kubernetes, airgap`,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		if packageTargets == "" {
 			return fmt.Errorf("--target is required")
@@ -62,6 +62,18 @@ Supported targets: deb, rpm, msi, dmg, helm, airgap`,
 				if err := packageAirgap(outDir); err != nil {
 					return fmt.Errorf("failed to package airgap: %w", err)
 				}
+			case "homebrew":
+				if err := packageHomebrew(outDir); err != nil {
+					return fmt.Errorf("failed to package homebrew: %w", err)
+				}
+			case "chocolatey":
+				if err := packageChocolatey(outDir); err != nil {
+					return fmt.Errorf("failed to package chocolatey: %w", err)
+				}
+			case "kubernetes":
+				if err := packageKubernetes(outDir); err != nil {
+					return fmt.Errorf("failed to package kubernetes: %w", err)
+				}
 			default:
 				return fmt.Errorf("unsupported target: %s", target)
 			}
@@ -74,7 +86,7 @@ Supported targets: deb, rpm, msi, dmg, helm, airgap`,
 
 func init() {
 	rootCmd.AddCommand(packageCmd)
-	packageCmd.Flags().StringVar(&packageTargets, "target", "", "comma-separated list of targets (deb,rpm,msi,dmg,helm,airgap)")
+	packageCmd.Flags().StringVar(&packageTargets, "target", "", "comma-separated list of targets (deb,rpm,msi,dmg,helm,homebrew,chocolatey,kubernetes,airgap)")
 	packageCmd.Flags().StringVar(&packageOut, "out", "", "output directory (default: ./dist)")
 }
 
@@ -202,44 +214,329 @@ func packageAirgap(outDir string) error {
 		return err
 	}
 
-	// Create installation script
+	// Create packages directory
+	packagesDir := filepath.Join(airgapDir, "packages")
+	if err := os.MkdirAll(packagesDir, 0755); err != nil {
+		return err
+	}
+
+	// Create installation script for Linux
 	installScript := `#!/bin/bash
 # Air-gapped installation script
 set -e
 
 echo "Installing Security Platform Agent in air-gapped environment..."
 
-# Extract packages
-tar -xzf packages.tar.gz
-
-# Install based on OS
+# Detect OS
 if [ -f /etc/debian_version ]; then
-    dpkg -i security-platform-agent*.deb
+    echo "Detected Debian/Ubuntu system"
+    if [ -f packages/security-platform-agent*.deb ]; then
+        dpkg -i packages/security-platform-agent*.deb
+    else
+        echo "ERROR: No .deb package found"
+        exit 1
+    fi
 elif [ -f /etc/redhat-release ]; then
-    rpm -ivh security-platform-agent*.rpm
+    echo "Detected RedHat/CentOS system"
+    if [ -f packages/security-platform-agent*.rpm ]; then
+        rpm -ivh packages/security-platform-agent*.rpm
+    else
+        echo "ERROR: No .rpm package found"
+        exit 1
+    fi
+elif [ "$(uname)" == "Darwin" ]; then
+    echo "Detected macOS system"
+    if [ -f packages/security-platform-agent*.pkg ]; then
+        sudo installer -pkg packages/security-platform-agent*.pkg -target /
+    elif [ -f packages/security-platform-agent ]; then
+        sudo cp packages/security-platform-agent /usr/local/bin/
+        sudo chmod +x /usr/local/bin/security-platform-agent
+    else
+        echo "ERROR: No macOS package found"
+        exit 1
+    fi
+else
+    echo "ERROR: Unsupported operating system"
+    exit 1
+fi
+
+# Create config directory
+sudo mkdir -p /etc/security-platform
+
+# Copy default config if it doesn't exist
+if [ ! -f /etc/security-platform/agent-config.yaml ]; then
+    sudo cp config/agent-config.yaml /etc/security-platform/
 fi
 
 echo "Installation complete."
+echo "Configuration: /etc/security-platform/agent-config.yaml"
 `
 	if err := os.WriteFile(filepath.Join(airgapDir, "install.sh"), []byte(installScript), 0755); err != nil {
 		return err
 	}
 
-	// Create manifest
+	// Create Windows installation script
+	installWindowsScript := `@echo off
+REM Air-gapped installation script for Windows
+echo Installing Security Platform Agent in air-gapped environment...
+
+if exist packages\security-platform-agent*.msi (
+    echo Installing MSI package...
+    msiexec /i packages\security-platform-agent*.msi /quiet /norestart
+) else if exist packages\security-platform-agent.exe (
+    echo Installing executable...
+    copy packages\security-platform-agent.exe "%ProgramFiles%\SecurityPlatform\"
+    "%ProgramFiles%\SecurityPlatform\security-platform-agent.exe" -install
+) else (
+    echo ERROR: No Windows package found
+    exit /b 1
+)
+
+REM Create config directory
+if not exist "%ProgramData%\SecurityPlatform" mkdir "%ProgramData%\SecurityPlatform"
+
+REM Copy default config if it doesn't exist
+if not exist "%ProgramData%\SecurityPlatform\agent-config.yaml" (
+    copy config\agent-config.yaml "%ProgramData%\SecurityPlatform\"
+)
+
+echo Installation complete.
+echo Configuration: %ProgramData%\SecurityPlatform\agent-config.yaml
+`
+	if err := os.WriteFile(filepath.Join(airgapDir, "install.bat"), []byte(installWindowsScript), 0644); err != nil {
+		return err
+	}
+
+	// Create manifest with all package types
 	manifest := `{
   "version": "1.0.0",
-  "packages": [
-    "security-platform-agent.deb",
-    "security-platform-agent.rpm"
-  ],
+  "packages": {
+    "linux": {
+      "deb": "security-platform-agent.deb",
+      "rpm": "security-platform-agent.rpm"
+    },
+    "darwin": {
+      "pkg": "security-platform-agent.pkg",
+      "binary": "security-platform-agent"
+    },
+    "windows": {
+      "msi": "security-platform-agent.msi",
+      "exe": "security-platform-agent.exe"
+    }
+  },
   "dependencies": [],
-  "checksums": {}
+  "checksums": {},
+  "installation": {
+    "linux": "./install.sh",
+    "darwin": "./install.sh",
+    "windows": "install.bat"
+  }
 }
 `
 	if err := os.WriteFile(filepath.Join(airgapDir, "manifest.json"), []byte(manifest), 0644); err != nil {
 		return err
 	}
 
-	fmt.Println("  Created airgap bundle")
+	// Create README
+	readme := `# Air-Gapped Installation Bundle
+
+This bundle contains all necessary files for installing Security Platform Agent in an air-gapped environment.
+
+## Contents
+
+- \`packages/\` - Platform-specific installation packages
+- \`config/\` - Default configuration files
+- \`install.sh\` - Linux/macOS installation script
+- \`install.bat\` - Windows installation script
+- \`manifest.json\` - Bundle manifest
+
+## Installation
+
+### Linux
+
+\`\`\`bash
+chmod +x install.sh
+sudo ./install.sh
+\`\`\`
+
+### macOS
+
+\`\`\`bash
+chmod +x install.sh
+sudo ./install.sh
+\`\`\`
+
+### Windows
+
+Run \`install.bat\` as Administrator.
+
+## Configuration
+
+After installation, edit the configuration file:
+
+- Linux/macOS: \`/etc/security-platform/agent-config.yaml\`
+- Windows: \`C:\\ProgramData\\SecurityPlatform\\agent-config.yaml\`
+
+## Verification
+
+\`\`\`bash
+# Linux/macOS
+security-platform-agent --version
+
+# Windows
+security-platform-agent.exe --version
+\`\`\`
+`
+	if err := os.WriteFile(filepath.Join(airgapDir, "README.md"), []byte(readme), 0644); err != nil {
+		return err
+	}
+
+	// Create config directory
+	configDir := filepath.Join(airgapDir, "config")
+	if err := os.MkdirAll(configDir, 0755); err != nil {
+		return err
+	}
+
+	// Copy default config template
+	defaultConfig := `control_plane_url: "https://api.securityplatform.com"
+auth_key: ""  # Set this after installation
+service_name: "security-platform-agent"
+environment: "production"
+namespace: "default"
+
+telemetry:
+  otlp_endpoint: "http://localhost:4318"
+  batch_size: 100
+  batch_timeout: "5s"
+  export_timeout: "30s"
+  max_queue_size: 2048
+
+policy:
+  mode: "observe"
+  auto_enable_blocking: false
+  observe_period_hours: 48
+
+security:
+  mtls_enabled: true
+`
+	if err := os.WriteFile(filepath.Join(configDir, "agent-config.yaml"), []byte(defaultConfig), 0644); err != nil {
+		return err
+	}
+
+	fmt.Println("  Created airgap bundle with installation scripts")
 	return nil
+}
+
+func packageHomebrew(outDir string) error {
+	homebrewDir := filepath.Join(outDir, "homebrew")
+	if err := os.MkdirAll(homebrewDir, 0755); err != nil {
+		return err
+	}
+
+	// Copy Homebrew formula
+	formulaPath := filepath.Join("packaging", "homebrew", "security-platform-agent.rb")
+	if _, err := os.Stat(formulaPath); err == nil {
+		if err := copyFile(formulaPath, filepath.Join(homebrewDir, "security-platform-agent.rb")); err != nil {
+			return err
+		}
+	}
+
+	fmt.Println("  Created Homebrew formula")
+	return nil
+}
+
+func packageChocolatey(outDir string) error {
+	chocoDir := filepath.Join(outDir, "chocolatey")
+	if err := os.MkdirAll(chocoDir, 0755); err != nil {
+		return err
+	}
+
+	// Copy Chocolatey package files
+	nuspecPath := filepath.Join("packaging", "chocolatey", "security-platform-agent.nuspec")
+	if _, err := os.Stat(nuspecPath); err == nil {
+		if err := copyFile(nuspecPath, filepath.Join(chocoDir, "security-platform-agent.nuspec")); err != nil {
+			return err
+		}
+	}
+
+	toolsDir := filepath.Join(chocoDir, "tools")
+	if err := os.MkdirAll(toolsDir, 0755); err != nil {
+		return err
+	}
+
+	installScript := filepath.Join("packaging", "chocolatey", "tools", "chocolateyInstall.ps1")
+	if _, err := os.Stat(installScript); err == nil {
+		if err := copyFile(installScript, filepath.Join(toolsDir, "chocolateyInstall.ps1")); err != nil {
+			return err
+		}
+	}
+
+	uninstallScript := filepath.Join("packaging", "chocolatey", "tools", "chocolateyUninstall.ps1")
+	if _, err := os.Stat(uninstallScript); err == nil {
+		if err := copyFile(uninstallScript, filepath.Join(toolsDir, "chocolateyUninstall.ps1")); err != nil {
+			return err
+		}
+	}
+
+	fmt.Println("  Created Chocolatey package")
+	return nil
+}
+
+func packageKubernetes(outDir string) error {
+	k8sDir := filepath.Join(outDir, "kubernetes")
+	if err := os.MkdirAll(k8sDir, 0755); err != nil {
+		return err
+	}
+
+	// Copy Kubernetes Operator files
+	operatorDir := filepath.Join("packaging", "kubernetes-operator")
+	if _, err := os.Stat(operatorDir); err == nil {
+		// Copy CRDs
+		crdDir := filepath.Join(operatorDir, "config", "crd", "bases")
+		if _, err := os.Stat(crdDir); err == nil {
+			if err := copyDir(crdDir, filepath.Join(k8sDir, "crd")); err != nil {
+				return err
+			}
+		}
+
+		// Copy examples
+		examplesDir := filepath.Join(operatorDir, "examples")
+		if _, err := os.Stat(examplesDir); err == nil {
+			if err := copyDir(examplesDir, filepath.Join(k8sDir, "examples")); err != nil {
+				return err
+			}
+		}
+	}
+
+	fmt.Println("  Created Kubernetes Operator package")
+	return nil
+}
+
+func copyFile(src, dst string) error {
+	data, err := os.ReadFile(src)
+	if err != nil {
+		return err
+	}
+	return os.WriteFile(dst, data, 0644)
+}
+
+func copyDir(src, dst string) error {
+	return filepath.Walk(src, func(path string, info os.FileInfo, err error) error {
+		if err != nil {
+			return err
+		}
+
+		relPath, err := filepath.Rel(src, path)
+		if err != nil {
+			return err
+		}
+
+		dstPath := filepath.Join(dst, relPath)
+
+		if info.IsDir() {
+			return os.MkdirAll(dstPath, 0755)
+		}
+
+		return copyFile(path, dstPath)
+	})
 }
