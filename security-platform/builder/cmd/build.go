@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"runtime"
 
 	"github.com/spf13/cobra"
 )
@@ -68,38 +69,160 @@ func init() {
 
 func buildNodeAgent(outDir, version string) error {
 	fmt.Println("Building Node.js agent...")
-	// In real implementation, run: npm install && npm run build
-	// Copy dist/ to outDir
+	agentDir := filepath.Join("..", "agents", "node")
+	
+	// Check if agent directory exists
+	if _, err := os.Stat(agentDir); os.IsNotExist(err) {
+		return fmt.Errorf("agent directory not found: %s", agentDir)
+	}
+	
+	// Create build instructions file
+	buildScript := fmt.Sprintf(`#!/bin/bash
+set -e
+cd %s
+npm install
+npm run build
+cp -r dist %s/node-agent-dist
+`, agentDir, outDir)
+	
+	scriptPath := filepath.Join(outDir, "build-node.sh")
+	if err := os.WriteFile(scriptPath, []byte(buildScript), 0755); err != nil {
+		return err
+	}
+	
+	fmt.Printf("  Created build script: %s\n", scriptPath)
+	fmt.Println("  Run: bash build-node.sh to build")
 	return nil
 }
 
 func buildPythonAgent(outDir, version string) error {
 	fmt.Println("Building Python agent...")
-	// In real implementation, run: python setup.py sdist bdist_wheel
+	agentDir := filepath.Join("..", "agents", "python")
+	
+	if _, err := os.Stat(agentDir); os.IsNotExist(err) {
+		return fmt.Errorf("agent directory not found: %s", agentDir)
+	}
+	
+	buildScript := fmt.Sprintf(`#!/bin/bash
+set -e
+cd %s
+python3 -m pip install --upgrade build
+python3 -m build
+cp dist/* %s/
+`, agentDir, outDir)
+	
+	scriptPath := filepath.Join(outDir, "build-python.sh")
+	if err := os.WriteFile(scriptPath, []byte(buildScript), 0755); err != nil {
+		return err
+	}
+	
+	fmt.Printf("  Created build script: %s\n", scriptPath)
+	fmt.Println("  Run: bash build-python.sh to build")
 	return nil
 }
 
 func buildJavaAgent(outDir, version string) error {
 	fmt.Println("Building Java agent...")
-	// In real implementation, run: mvn clean package
+	agentDir := filepath.Join("..", "agents", "java")
+	
+	if _, err := os.Stat(agentDir); os.IsNotExist(err) {
+		return fmt.Errorf("agent directory not found: %s", agentDir)
+	}
+	
+	buildScript := fmt.Sprintf(`#!/bin/bash
+set -e
+cd %s
+mvn clean package -DskipTests
+cp target/*.jar %s/
+`, agentDir, outDir)
+	
+	scriptPath := filepath.Join(outDir, "build-java.sh")
+	if err := os.WriteFile(scriptPath, []byte(buildScript), 0755); err != nil {
+		return err
+	}
+	
+	fmt.Printf("  Created build script: %s\n", scriptPath)
+	fmt.Println("  Run: bash build-java.sh to build")
 	return nil
 }
 
 func buildDotNetAgent(outDir, version string) error {
 	fmt.Println("Building .NET agent...")
-	// In real implementation, run: dotnet build --configuration Release
+	agentDir := filepath.Join("..", "agents", "dotnet", "SecurityPlatform.Agent")
+	
+	if _, err := os.Stat(agentDir); os.IsNotExist(err) {
+		return fmt.Errorf("agent directory not found: %s", agentDir)
+	}
+	
+	buildScript := fmt.Sprintf(`#!/bin/bash
+set -e
+cd %s
+dotnet build --configuration Release
+dotnet pack --configuration Release --output %s
+`, agentDir, outDir)
+	
+	scriptPath := filepath.Join(outDir, "build-dotnet.sh")
+	if err := os.WriteFile(scriptPath, []byte(buildScript), 0755); err != nil {
+		return err
+	}
+	
+	fmt.Printf("  Created build script: %s\n", scriptPath)
+	fmt.Println("  Run: bash build-dotnet.sh to build")
 	return nil
 }
 
 func buildGoAgent(outDir, version, arch string) error {
 	fmt.Printf("Building Go agent for %s...\n", arch)
-	// In real implementation, use goreleaser or go build
+	agentDir := filepath.Join("..", "agents", "go")
+	
+	if _, err := os.Stat(agentDir); os.IsNotExist(err) {
+		return fmt.Errorf("agent directory not found: %s", agentDir)
+	}
+	
+	outputName := fmt.Sprintf("security-platform-agent-%s-%s", runtime.GOOS, arch)
+	if runtime.GOOS == "windows" {
+		outputName += ".exe"
+	}
+	
+	buildScript := fmt.Sprintf(`#!/bin/bash
+set -e
+cd %s
+GOOS=%s GOARCH=%s go build -o %s/%s .
+`, agentDir, runtime.GOOS, arch, outDir, outputName)
+	
+	scriptPath := filepath.Join(outDir, "build-go.sh")
+	if err := os.WriteFile(scriptPath, []byte(buildScript), 0755); err != nil {
+		return err
+	}
+	
+	fmt.Printf("  Created build script: %s\n", scriptPath)
+	fmt.Printf("  Output: %s/%s\n", outDir, outputName)
+	fmt.Println("  Run: bash build-go.sh to build")
 	return nil
 }
 
 func buildFrontendSDK(outDir, version string) error {
 	fmt.Println("Building Frontend SDK...")
-	// In real implementation, run: npm install && npm run build
-	// Create UMD bundle and minified versions
+	agentDir := filepath.Join("..", "agents", "frontend")
+	
+	if _, err := os.Stat(agentDir); os.IsNotExist(err) {
+		return fmt.Errorf("agent directory not found: %s", agentDir)
+	}
+	
+	buildScript := fmt.Sprintf(`#!/bin/bash
+set -e
+cd %s
+npm install
+npm run build
+cp -r dist %s/frontend-sdk-dist
+`, agentDir, outDir)
+	
+	scriptPath := filepath.Join(outDir, "build-frontend.sh")
+	if err := os.WriteFile(scriptPath, []byte(buildScript), 0755); err != nil {
+		return err
+	}
+	
+	fmt.Printf("  Created build script: %s\n", scriptPath)
+	fmt.Println("  Run: bash build-frontend.sh to build")
 	return nil
 }
